@@ -1,8 +1,9 @@
 # JetBlack.Caching
 
-This project contains code I found useful for caching problems. It includes circular buffers, timout dictionaries, and persistent dictionaries.
+This project contains code I found useful for caching problems. It includes
+circular buffers, timout dictionaries, and persistent dictionaries.
 
-## Circular Buffer in C#
+## Circular Buffer
 
 A circular buffer is buffer of fixed length. When the buffer is full, subsequent
 writes wrap, overwriting previous values. It is useful when you are only
@@ -351,7 +352,7 @@ namespace JetBlack.Caching.Test.Collections.Generic
 
 ## Heap
 
-This post describes a heap data structure. In this implementation a heap
+This section describes a heap data structure. In this implementation a heap
 manages a sequential array of data which grows upwards from the bottom.
 Blocks of this array can be allocated, freed, read and written to through
 handles. The heap attempts to keep itself small by managing a list of free
@@ -531,7 +532,9 @@ namespace JetBlack.Caching.Collections.Specialized
 
 ### The HeapManager implementation
 
-My implementation of the heap manager is fairly trivial, but it was sufficient for my purpose. The only optimisation it performs is to merge adjacent freed blocks.
+My implementation of the heap manager is fairly trivial, but it was sufficient
+for my purpose. The only optimisation it performs is to merge adjacent freed
+blocks.
 
 ```cs
 using System;
@@ -647,7 +650,9 @@ namespace JetBlack.Caching.Collections.Specialized
 
 ### The Heap Implementation
 
-With most of the heavy lifting done, the heap implementation looks pretty trivial. The class is abstract, as we have yet to decide how to represent the array.
+With most of the heavy lifting done, the heap implementation looks pretty
+trivial. The class is abstract, as we have yet to decide how to represent the
+array.
 
 ```cs
 namespace JetBlack.Caching.Collections.Specialized
@@ -923,6 +928,501 @@ namespace JetBlack.Caching.Test.Collections.Specialized
             Assert.IsTrue(File.Exists(fileName));
             heap.Dispose();
             Assert.IsFalse(File.Exists(fileName));
+        }
+    }
+}
+```
+
+## Persistent Dictionary
+
+This describes the implementation of a persistent dictionary. There are a
+number of excellent solutions to this online, but most were highly complex.
+This is a simple implementation which was sufficient for my purpose. It uses
+the classes described in the Heap section.
+
+### The Cache
+
+First we defined the interface for the persistent cache. This follows the
+traditional CRUD pattern.
+
+```cs
+using System;
+using JetBlack.Patterns.Heaps;
+
+namespace JetBlack.Patterns.Caching
+{
+    public interface ICache<T> : IDisposable
+    {
+        Handle Create(T value);
+        T Read(Handle handle);
+        Handle Update(Handle handle, T value);
+        void Delete(Handle handle);
+    }
+}
+```
+
+### A Cache Implementation
+
+Now we can implement a fairly straightforward cache, without making too many
+decisions about how it will be used. All we need to provide is a heap, a
+serializer, and a deserializer.
+
+The `Update` method has some complexity. If the size of the object has changed
+it will need to deallocate the old block and allocate a new one.
+
+```cs
+using System;
+using JetBlack.Patterns.Heaps;
+
+namespace JetBlack.Patterns.Caching
+{
+    public class SerializingCache<TItem, TRaw> : ICache<TItem>
+    {
+        private readonly IHeap<TRaw> _heap;
+        private readonly Func<TItem, TRaw[]> _serialize;
+        private readonly Func<TRaw[], TItem> _deserialize;
+
+        public SerializingCache(IHeap<TRaw> heap, Func<TItem, TRaw[]> serialize, Func<TRaw[],TItem> deserialize)
+        {
+            _heap = heap;
+            _serialize = serialize;
+            _deserialize = deserialize;
+        }
+
+        public Handle Create(TItem value)
+        {
+            var raw = _serialize(value);
+            var handle = _heap.Allocate(raw.Length);
+            _heap.Write(handle, raw);
+            return handle;
+        }
+
+        public TItem Read(Handle handle)
+        {
+            var raw = _heap.Read(handle);
+            return _deserialize(raw);
+        }
+
+        public Handle Update(Handle handle, TItem value)
+        {
+            var raw = _serialize(value);
+            var block = _heap.GetAllocatedBlock(handle);
+
+            if (block.Length != raw.Length)
+            {
+                _heap.Free(handle);
+                handle = _heap.Allocate(raw.Length);
+            }
+
+            _heap.Write(handle, raw);
+
+            return handle;
+        }
+
+        public void Delete(Handle handle)
+        {
+            _heap.Free(handle);
+        }
+
+        public void Dispose()
+        {
+            _heap.Dispose();
+        }
+    }
+}
+```
+
+### An Example String Cache
+
+A trivial implementation of the serializers could be the following.
+
+```cs
+using System.Text;
+using JetBlack.Patterns.Heaps;
+
+namespace JetBlack.Patterns.Caching
+{
+    public class StringCache : SerializingCache<string,byte>
+    {
+        public StringCache(IHeap<byte> heap, Encoding encoding)
+            : base(heap, encoding.GetBytes, encoding.GetString)
+        {
+        }
+
+        public StringCache(IHeap<byte> heap)
+            : this(heap, Encoding.Default)
+        {           
+        }
+    }
+}
+```
+
+### A Persistant Dictionary
+
+All we need to do to create a persistent dictionary is to wrap a cache with a
+dictionary implementation. We keep and index of keys to handles to map to the
+persistent cache.
+
+The factory class at the top generates the dictionary with binary serializers
+so we can support a large population of possible objects.
+
+```cs
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using JetBlack.Core.Collections.Generic;
+using JetBlack.Patterns.Heaps;
+using System.IO;
+using System.Runtime.Serialization.Formatters.Binary;
+
+namespace JetBlack.Patterns.Caching
+{
+    public static class PersistentDictionary
+    {
+        public static readonly BinaryFormatter BinaryFormatter = new BinaryFormatter();
+
+        public static PersistantDictionary<TKey, TValue> Create<TKey,TValue>()
+        {
+            return Create<TKey,TValue>(new FileStreamHeap(() => new FileStream(Path.GetTempFileName(), FileMode.Open), new LightweightHeapManager()));
+        }
+
+        public static PersistantDictionary<TKey,TValue> Create<TKey,TValue>(IHeap<byte> heap)
+        {
+            return new PersistantDictionary<TKey,TValue>(new SerializingCache<TValue,byte>(heap, Serialize, Deserialize<TValue>));
+        }
+
+        public static byte[] Serialize<TValue>(TValue value)
+        {
+            using (var stream = new MemoryStream())
+            {
+                BinaryFormatter.Serialize(stream, value);
+                stream.Flush();
+                return stream.GetBuffer();
+            }
+        }
+
+        public static TValue Deserialize<TValue>(byte[] bytes)
+        {
+            using (var stream = new MemoryStream())
+            {
+                return (TValue)BinaryFormatter.Deserialize(stream);
+            }
+        }
+
+    }
+
+    public class PersistantDictionary<TKey, TValue> : IDictionary<TKey, TValue>, IDisposable
+    {
+        private readonly ICache<TValue> _cache;
+        private readonly IDictionary<TKey, Handle> _index = new Dictionary<TKey, Handle>();
+
+        public PersistantDictionary(ICache<TValue> cache)
+        {
+            _cache = cache;
+        }
+
+        public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
+        {
+            using (var indexEnumerator = _index.GetEnumerator())
+            {
+                while (indexEnumerator.MoveNext())
+                    yield return KeyValuePair.Create(indexEnumerator.Current.Key, _cache.Read(indexEnumerator.Current.Value));
+            }
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
+
+        public void Add(KeyValuePair<TKey,TValue> item)
+        {
+            Add(item.Key, item.Value);
+        }
+
+        public void Clear()
+        {
+            foreach (var handle in _index.Values)
+                _cache.Delete(handle);
+            _index.Clear();
+        }
+
+        public bool Contains(KeyValuePair<TKey, TValue> item)
+        {
+            return ContainsKey(item.Key);
+        }
+
+        public void CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex)
+        {
+            foreach (var item in _index)
+                array[arrayIndex++] = KeyValuePair.Create(item.Key, _cache.Read(item.Value));
+        }
+
+        public bool Remove(KeyValuePair<TKey, TValue> item)
+        {
+            return Remove(item.Key);
+        }
+
+        public int Count
+        {
+            get { return _index.Count; }
+        }
+
+        public bool IsReadOnly
+        {
+            get { return false; }
+        }
+
+        public bool ContainsKey(TKey key)
+        {
+            return _index.ContainsKey(key);
+        }
+
+        public void Add(TKey key, TValue value)
+        {
+            var handle = _cache.Create(value);
+            _index.Add(key, handle);
+        }
+
+        public bool Remove(TKey key)
+        {
+            Handle handle;
+            if (!_index.TryGetValue(key, out handle))
+                return false;
+            _cache.Delete(handle);
+            _index.Remove(key);
+            return true;
+        }
+
+        public bool TryGetValue(TKey key, out TValue value)
+        {
+            Handle handle;
+            if (!_index.TryGetValue(key, out handle))
+            {
+                value = default(TValue);
+                return false;
+            }
+            value = _cache.Read(handle);
+            return true;
+        }
+
+        public TValue this[TKey key]
+        {
+            get { return _cache.Read(_index[key]); }
+            set
+            {
+                Handle handle;
+                _index[key] = _index.TryGetValue(key, out handle) ? _cache.Update(handle, value) : _cache.Create(value);
+            }
+        }
+
+        public ICollection<TKey> Keys
+        {
+            get { return _index.Keys; }
+        }
+
+        public ICollection<TValue> Values
+        {
+            get { return _index.Values.Select(handle => _cache.Read(handle)).ToList(); }
+        }
+
+        public void Dispose()
+        {
+            _cache.Dispose();
+        }
+    }
+}
+```
+
+## Caching Dictionary
+
+This section describes an implementation of a local/persistent caching
+dictionary bringing together the classes discussed in the Heap,
+PersistentDictionary, and CircularBuffer sections.
+
+### Design
+
+The implementation uses an in memory dictionary and a persistent dictionary.
+The recently accessed items remain in the local dictionary, while the less
+used are moved to the persistent store. As older values are accessed they
+are moved back into the local store.
+
+```cs
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using JetBlack.Core.Collections.Generic;
+
+namespace JetBlack.Patterns.Caching
+{
+    public class CachingDictionry<TKey,TValue> : IDictionary<TKey,TValue>, IDisposable
+    {
+        private readonly PersistantDictionary<TKey,TValue> _persistantDictionary;
+        private readonly IDictionary<TKey, TValue> _localDictionary;
+        private readonly ICircularBuffer<TKey> _localKeyQueue;
+
+        public CachingDictionry(PersistantDictionary<TKey, TValue> persistantDictionary, int maxCacheCount)
+        {
+            _persistantDictionary = persistantDictionary;
+            _localDictionary = new Dictionary<TKey, TValue>(maxCacheCount);
+            _localKeyQueue = new CircularBuffer<TKey>(maxCacheCount);
+        }
+
+        public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
+        {
+            foreach (var item in _localDictionary)
+                yield return item;
+            foreach (var item in _persistantDictionary)
+                yield return item;
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
+
+        public void Add(KeyValuePair<TKey, TValue> item)
+        {
+            Add(item.Key, item.Value);
+        }
+
+        public void Clear()
+        {
+            _localDictionary.Clear();
+            _persistantDictionary.Clear();
+            _localKeyQueue.Clear();
+        }
+
+        public bool Contains(KeyValuePair<TKey, TValue> item)
+        {
+            return ContainsKey(item.Key);
+        }
+
+        public void CopyTo(KeyValuePair<TKey,TValue>[] array, int arrayIndex)
+        {
+            _localDictionary.CopyTo(array, arrayIndex);
+            _persistantDictionary.CopyTo(array, _localDictionary.Count + arrayIndex);
+        }
+
+        public bool Remove(KeyValuePair<TKey,TValue> item)
+        {
+            return Remove(item.Key);
+        }
+
+        public int Count
+        {
+            get { return _localDictionary.Count + _persistantDictionary.Count; }
+        }
+
+        public bool IsReadOnly
+        {
+            get { return false; }
+        }
+
+        public bool ContainsKey(TKey key)
+        {
+            return _localDictionary.ContainsKey(key) || _persistantDictionary.ContainsKey(key);
+        }
+
+        public void Add(TKey key, TValue value)
+        {
+            _localDictionary.Add(key, value);
+            var overwrittenKey = _localKeyQueue.Enqueue(key);
+            if (!Equals(overwrittenKey, default(TKey)))
+                MakePersistant(overwrittenKey);
+        }
+
+        public bool Remove(TKey key)
+        {
+            var status = _localDictionary.Remove(key);
+            if (status)
+                _localKeyQueue.RemoveAt(_localKeyQueue.IndexOf(key));
+            else
+                status = _persistantDictionary.Remove(key);
+            return status;
+        }
+
+        public bool TryGetValue(TKey key, out TValue value)
+        {
+            if (!_localDictionary.TryGetValue(key, out value))
+            {
+                if (!_persistantDictionary.TryGetValue(key, out value))
+                {
+                    value = default(TValue);
+                    return false;
+                }
+
+                MakeLocal(key);
+                value = _localDictionary[key];
+            }
+            return true;
+        }
+
+        public TValue this[TKey key]
+        {
+            get
+            {
+                if (Equals(key, null))
+                    throw new ArgumentNullException();
+
+                TValue value;
+                if (!TryGetValue(key, out value))
+                    throw new KeyNotFoundException();
+                return value;
+            }
+            set
+            {
+                if (Equals(key, null))
+                    throw new ArgumentNullException();
+
+                if (_localDictionary.ContainsKey(key))
+                    _localDictionary[key] = value;
+                else if (!_persistantDictionary.ContainsKey(key))
+                    Add(key, value);
+                else
+                {
+                    MakeLocal(key);
+                    _localDictionary[key] = value;
+                }
+            }
+        }
+
+        public ICollection<TKey> Keys
+        {
+            get { return _localDictionary.Keys.Concat(_persistantDictionary.Keys).ToList(); }
+        }
+
+        public ICollection<TValue> Values
+        {
+            get { return _localDictionary.Values.Concat(_persistantDictionary.Values).ToList(); }
+        }
+
+        private void MakeLocal(TKey key)
+        {
+            Move(key, _persistantDictionary, _localDictionary);
+
+            var overwrittenKey = _localKeyQueue.Enqueue(key);
+            if (!Equals(overwrittenKey, default(TKey)))
+                MakePersistant(overwrittenKey);
+        }
+
+        private void MakePersistant(TKey key)
+        {
+            Move(key, _localDictionary, _persistantDictionary);
+        }
+
+        private static void Move(TKey key, IDictionary<TKey, TValue> from, IDictionary<TKey, TValue> to)
+        {
+            var value = from[key];
+            from.Remove(key);
+            to.Add(key, value);
+        }
+
+        public void Dispose()
+        {
+            _persistantDictionary.Dispose();
         }
     }
 }
