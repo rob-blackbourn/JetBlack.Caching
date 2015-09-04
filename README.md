@@ -4,19 +4,35 @@ This project contains code I found useful for caching problems. It includes circ
 
 ## Circular Buffer in C#
 
-A circular buffer is buffer of fixed length. When the buffer is full, subsequent writes wrap, overwriting previous values. It is useful when you are only interested in the most recent values.
+A circular buffer is buffer of fixed length. When the buffer is full, subsequent
+writes wrap, overwriting previous values. It is useful when you are only
+interested in the most recent values.
 
 ### Design Goal
 
-This is a circular buffer I needed as a component for a caching layer. It is largely a blatant ripoff of the many implementations previously published on the web, with a few changes which might prove useful to those with similar objectives.
+This is a circular buffer I needed as a component for a caching layer. It is
+largely a blatant ripoff of the many implementations previously published on
+the web, with a few changes which might prove useful to those with similar
+objectives.
 
-My first specific requirement was to model the structure as a queue, so the primary interaction is Enqueue and Dequeue. As my caching layer has an in memory cache and a persistent cache, I needed the Enqueue to return the overwritten value (if there was one). Lastly I needed to be able to arbitrarily move things around in the queue, so I could control the order and contents.
+My first specific requirement was to model the structure as a queue, so the
+primary interaction is `Enqueue` and `Dequeue`. As my caching layer has an in
+memory cache and a persistent cache, I needed the `Enqueue` to return the
+overwritten value (if there was one). Lastly I needed to be able to arbitrarily
+move things around in the queue, so I could control the order and contents.
 
 ### The Interface
 
-All the obvious candidates are in the interface. You can see the queue style interaction. Also note the enqueue returns the overwritten value if one exists (otherwise it will be default(T)). The indexer methods, IndexOf, InsertAt, and RemoveAt provide the mechanism to manipulate the queue directly.
+All the obvious candidates are in the interface. You can see the queue style
+interaction. Also note the enqueue returns the overwritten value if one exists
+(otherwise it will be `default(T)`). The indexer methods, `IndexOf`,
+`InsertAt`, and `RemoveAt` provide the mechanism to manipulate the queue
+directly.
 
-I could have provided item lookups by value rather than index, but these would have still required the indexing operators and I wanted to keep the class small. It should be clear how a derived class, (possibly implementing IList<T>) could be simply implemented.
+I could have provided item lookups by value rather than index, but these would
+have still required the indexing operators and I wanted to keep the class small.
+It should be clear how a derived class, (possibly implementing `IList<T>`)
+could be trivially implemented.
 
 ```cs
 using System.Collections.Generic;
@@ -40,9 +56,14 @@ namespace JetBlack.Caching.Collections.Generic
 
 ### The Implementation
 
-The code follows the traditional circular buffer pattern of declaring a fixed length array, then maintaining an index to the head and tail of the array. Typically the size of the buffer is defined by the constructor, but I have included a Capacity property, to allow more sympathetic subclassing.
+The code follows the traditional circular buffer pattern of declaring a fixed
+length array, then maintaining an index to the head and tail of the array.
+Typically the size of the buffer is defined by the constructor, but I have
+included a Capacity property, to allow more sympathetic subclassing.
 
-Though not strictley necessary it seemed convenient to implement IEnumerable<T>. The amount of code required is small, and it provides Linq compatibility at little extra cost.
+Though not strictley necessary it seemed convenient to implement `IEnumerable<T>`.
+The amount of code required is small, and it provides Linq compatibility at
+little extra cost.
 
 ```cs
 using System;
@@ -188,6 +209,7 @@ namespace JetBlack.Caching.Collections.Generic
 ```
 
 ### Tests
+
 Here are some simple tests which also demonstrate how to use the class.
 
 ```cs
@@ -329,23 +351,35 @@ namespace JetBlack.Caching.Test.Collections.Generic
 
 ## Heap
 
-This post describes a heap data structure. In this implementation a heap manages a sequential array of data which grows upwards from the bottom. Blocks of this array can be allocated, freed, read and written to through handles. The heap attempts to keep itself small by managing a list of free blocks that can be reallocated.
+This post describes a heap data structure. In this implementation a heap
+manages a sequential array of data which grows upwards from the bottom.
+Blocks of this array can be allocated, freed, read and written to through
+handles. The heap attempts to keep itself small by managing a list of free
+blocks that can be reallocated.
 
 ### Design
 
-The primary operations handled by the heap will be memory management: Allocate and Deallocate, and reading and writing: Read and Write. As will become clear later on it is also useful to be able to discover allocations, so one less obvious operation GetAllocatedBlock is included.
+The primary operations handled by the heap will be memory management: `Allocate`
+and `Deallocate`, and reading and writing: `Read` and `Write`. As will become
+clear later on it is also useful to be able to discover allocations, so one
+less obvious operation `GetAllocatedBlock` is included.
 
-Because the heap manages its data internally, we need some utility classes. First a Handle through which we can refer to a block that has been allocated. Second we the Block which defines the area in the heap to which the Handle refers.
+Because the heap manages its data internally, we need some utility classes. First
+a `Handle` through which we can refer to a block that has been allocated. Second
+we define the `Block` which defines the area in the heap to which the `Handle`
+refers.
 
 #### Handle
 
-The handle is irritatingly large for such a trivial data structure. This is because it implements a couple of interfaces for equality, and a factory class for generating new handles.
+The handle is irritatingly large for such a trivial data structure. This is
+because it implements a couple of interfaces for equality, and a factory class
+for generating new handles.
 
 ```cs
 using System;
 using System.Collections.Generic;
 
-namespace JetBlack.Patterns
+namespace JetBlack.Caching.Collections.Specialized
 {
     public struct Handle : IEquatable<Handle>, IEqualityComparer<Handle>
     {
@@ -398,7 +432,8 @@ namespace JetBlack.Patterns
 
 #### Block
 
-The Block is rather more terse. It has the index offset into the heap, and a length. Both the handle and the block are immutable.
+The `Block` is rather more terse. It has the index offset into the heap, and a
+length. Both the handle and the block are immutable.
 
 ```cs
 using System;
@@ -455,12 +490,14 @@ namespace JetBlack.Patterns
 
 ### The Heap Interface
 
-Now we have our basic data structures we can define the interface to the heap. At this stage we can be agnostic to the type of items in the array, although most typically they will be bytes.
+Now we have our basic data structures we can define the interface to the heap.
+At this stage we can be agnostic to the type of items in the array, although
+most typically they will be bytes.
 
 ```cs
 using System;
 
-namespace JetBlack.Patterns.Heaps
+namespace JetBlack.Caching.Collections.Specialized
 {
     public interface IHeap<T> : IDisposable
     {
@@ -478,7 +515,7 @@ namespace JetBlack.Patterns.Heaps
 The tricky bit in a heap is managing the free list. As allocations are requested and released, discarded blocks are gathered together to be re-allocated. With the interface used here (where access is managed through a handle) the data itself may be completely reorganised. This stops the heap growing unnecessarily. There are many algorithms available for this, so I decided to create an IHeapManager to represent allocation, and allow this part too be pluggable.
 
 ```cs
-namespace JetBlack.Patterns
+namespace JetBlack.Caching.Collections.Specialized
 {
     public interface IHeapManager
     {
@@ -501,7 +538,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace JetBlack.Patterns
+namespace JetBlack.Caching.Collections.Specialized
 {
     public class LightweightHeapManager : IHeapManager
     {
@@ -613,7 +650,7 @@ namespace JetBlack.Patterns
 With most of the heavy lifting done, the heap implementation looks pretty trivial. The class is abstract, as we have yet to decide how to represent the array.
 
 ```cs
-namespace JetBlack.Patterns.Heaps
+namespace JetBlack.Caching.Collections.Specialized
 {
     public abstract class Heap<T> : IHeap<T>
     {
@@ -657,17 +694,25 @@ namespace JetBlack.Patterns.Heaps
 
 ### The StreamHeap
 
-As my goal is to create a persistent cache the first step is to model the heap with a byte stream. There a couple of non-obvious choices here. 
+As my goal is to create a persistent cache the first step is to model the heap
+with a byte stream. There a couple of non-obvious choices here. 
 
-The first is the constructor. There is some confusion over the ownership of the stream. Should this class dispose of the stream or not? Is it the owner? I could have passed a flag in the public constructor, but it seemed more natural that the class would own the stream if it created it. This is why I have a factory method for stream construction.
+The first is the constructor. There is some confusion over the ownership of the
+stream. Should this class dispose of the stream or not? Is it the owner? I
+could have passed a flag in the public constructor, but it seemed more natural
+that the class would own the stream if it created it. This is why I have a
+factory method for stream construction.
 
-Second we can see the reason for GetAllocatedBlock and CreateFreeBlock. This class does the actual reading and writing, so it needs the information provided by the heap to fulfil these duties. It also needs to know about the free block creation, so it can manage the physical space.
+Second we can see the reason for `GetAllocatedBlock` and `CreateFreeBlock`.
+This class does the actual reading and writing, so it needs the information
+provided by the heap to fulfil these duties. It also needs to know about the
+free block creation, so it can manage the physical space.
 
 ```cs
 using System;
 using System.IO;
 
-namespace JetBlack.Patterns.Heaps
+namespace JetBlack.Caching.Collections.Specialized
 {
     public class StreamHeap : Heap<byte>
     {
@@ -738,13 +783,14 @@ namespace JetBlack.Patterns.Heaps
 
 Finally we can save it to disc!
 
-The same strategy (this time over file ownership) is used, with a factory class indicating ownership. 
+The same strategy (this time over file ownership) is used, with a factory class
+indicating ownership. 
 
 ```cs
 using System;
 using System.IO;
 
-namespace JetBlack.Patterns.Heaps
+namespace JetBlack.Caching.Collections.Specialized
 {
     public class FileStreamHeap : StreamHeap
     {
@@ -787,7 +833,7 @@ using NUnit.Framework;
 using JetBlack.Patterns.Heaps;
 using System.Text;
 
-namespace JetBlack.Patterns.Test.Heaps
+namespace JetBlack.Caching.Test.Collections.Specialized
 {
     [TestFixture]
     public class StreamHeapFixture
@@ -854,7 +900,8 @@ namespace JetBlack.Patterns.Test.Heaps
 
 ### Test For File Streams
 
-Apart from the construction the file stream heap has exactly the same functionality as the stream heap, so all I test here is the ownership.
+Apart from the construction the file stream heap has exactly the same
+functionality as the stream heap, so all I test here is the ownership.
 
 ```cs
 using System;
@@ -862,7 +909,7 @@ using NUnit.Framework;
 using System.IO;
 using JetBlack.Patterns.Heaps;
 
-namespace JetBlack.Patterns.Test.Heaps
+namespace JetBlack.Caching.Test.Collections.Specialized
 {
     [TestFixture]
     public class FileStreamHeapFixture
