@@ -81,21 +81,21 @@ namespace JetBlack.Caching.Collections.Generic
                 if (index < 0 || index >= Count)
                     throw new ArgumentOutOfRangeException("index");
 
-                return _buffer[(_tail + index) % Capacity];
+                return Get(index);
             }
             set
             {
                 if (index < 0 || index >= Count)
                     throw new ArgumentOutOfRangeException("index");
 
-                _buffer[(_tail + index) % Capacity] = value;
+                Set(index, value);
             }
         }
 
         public int IndexOf(T item)
         {
             for (var i = 0; i < Count; ++i)
-                if (Equals(item, this[i]))
+                if (Equals(item, Get(i)))
                     return i;
             return -1;
         }
@@ -111,8 +111,8 @@ namespace JetBlack.Caching.Collections.Generic
             {
                 var last = this[Count - 1];
                 for (var i = index; i < Count - 2; ++i)
-                    this[i + 1] = this[i];
-                this[index] = item;
+                    Set(i + 1, Get(i));
+                Set(index, item);
                 Enqueue(last);
             }
         }
@@ -123,7 +123,7 @@ namespace JetBlack.Caching.Collections.Generic
                 throw new ArgumentOutOfRangeException("index");
 
             for (var i = index; i > 0; --i)
-                this[i] = this[i - 1];
+                Set(i, Get(i - 1));
             Dequeue();
         }
 
@@ -133,12 +133,22 @@ namespace JetBlack.Caching.Collections.Generic
                 yield break;
 
             for (var i = 0; i < Count; ++i)
-                yield return this[i];
+                yield return Get(i);
         }
 
         IEnumerator IEnumerable.GetEnumerator()
         {
             return GetEnumerator();
+        }
+
+        private T Get(int index)
+        {
+            return _buffer[(_tail + index) % Capacity];
+        }
+
+        private void Set(int index, T value)
+        {
+            _buffer[(_tail + index) % Capacity] = value;
         }
 
         public override string ToString()
