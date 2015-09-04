@@ -30,7 +30,8 @@ Debug.WriteLine(buffer);
 // Capacity=5, Count=5, Buffer=[2,3,4,5,6]
 
 // Remove the third.
-var value = buffer.RemoveAt(3);
+var value = buffer[3];
+buffer.RemoveAt(3);
 Debug.WriteLine(buffer);
 // Capacity=5, Count=4, Buffer=[2,3,4,6]
 

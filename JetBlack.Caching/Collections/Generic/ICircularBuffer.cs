@@ -10,6 +10,6 @@
         T this[int index] { get; set; }
         int IndexOf(T item);
         void Insert(int index, T item);
-        T RemoveAt(int index);
+        void RemoveAt(int index);
     }
 }

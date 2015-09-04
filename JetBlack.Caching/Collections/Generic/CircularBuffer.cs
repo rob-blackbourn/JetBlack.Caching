@@ -117,18 +117,14 @@ namespace JetBlack.Caching.Collections.Generic
             }
         }
 
-        public T RemoveAt(int index)
+        public void RemoveAt(int index)
         {
             if (index < 0 || index >= Count)
                 throw new ArgumentOutOfRangeException("index");
 
-            var value = this[index];
-
             for (var i = index; i > 0; --i)
                 this[i] = this[i - 1];
             Dequeue();
-
-            return value;
         }
 
         public IEnumerator<T> GetEnumerator()
