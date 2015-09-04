@@ -14,60 +14,57 @@ interested in the most recent values.
 To whet your appetite, here are some examples.
 
 ```cs
-public void UsageExample()
-{
-    // Create a buffer with a capacity of 5 items.
-    var buffer = new CircularBuffer<long>(5);
+// Create a buffer with a capacity of 5 items.
+var buffer = new CircularBuffer<long>(5);
 
-    // Add three.
-    foreach (var i in Enumerable.Range(1, 3))
-        buffer.Enqueue(i);
-    Debug.WriteLine(buffer);
-    // Capacity=5, Count=3, Buffer=[1,2,3]
+// Add three.
+foreach (var i in Enumerable.Range(1, 3))
+    buffer.Enqueue(i);
+Debug.WriteLine(buffer);
+// Capacity=5, Count=3, Buffer=[1,2,3]
 
-    // Add three more.
-    foreach (var i in Enumerable.Range(4, 3))
-        buffer.Enqueue(i);
-    Debug.WriteLine(buffer);
-    // Capacity=5, Count=5, Buffer=[2,3,4,5,6]
+// Add three more.
+foreach (var i in Enumerable.Range(4, 3))
+    buffer.Enqueue(i);
+Debug.WriteLine(buffer);
+// Capacity=5, Count=5, Buffer=[2,3,4,5,6]
 
-    // Remove the third.
-    buffer.RemoveAt(3);
-    Debug.WriteLine(buffer);
-    // Capacity=5, Count=4, Buffer=[2,3,4,6]
+// Remove the third.
+var value = buffer.RemoveAt(3);
+Debug.WriteLine(buffer);
+// Capacity=5, Count=4, Buffer=[2,3,4,6]
 
-    // Re-insert it.
-    buffer.Insert(3, 5);
-    Debug.WriteLine(buffer);
-    // Capacity=5, Count=5, Buffer=[2,3,4,5,6]
+// Re-insert it.
+buffer.Insert(3, value);
+Debug.WriteLine(buffer);
+// Capacity=5, Count=5, Buffer=[2,3,4,5,6]
 
-    // Dequeue.
-    Debug.Print("Value = {0}", buffer.Dequeue());
-    // Value = 2
-    Debug.WriteLine(buffer);
-    // Capacity=5, Count=4, Buffer=[3,4,5,6]
+// Dequeue.
+Debug.Print("Value = {0}", buffer.Dequeue());
+// Value = 2
+Debug.WriteLine(buffer);
+// Capacity=5, Count=4, Buffer=[3,4,5,6]
 
-    // Increase the capacity.
-    buffer.Capacity = 6;
-    Debug.WriteLine(buffer);
-    // Capacity=6, Count=4, Buffer=[3,4,5,6]
+// Increase the capacity.
+buffer.Capacity = 6;
+Debug.WriteLine(buffer);
+// Capacity=6, Count=4, Buffer=[3,4,5,6]
 
-    // Add three more.
-    foreach (var i in Enumerable.Range(7, 3))
-        buffer.Enqueue(i);
-    Debug.WriteLine(buffer);
-    // Capacity=6, Count=6, Buffer=[4,5,6,7,8,9]
+// Add three more.
+foreach (var i in Enumerable.Range(7, 3))
+    buffer.Enqueue(i);
+Debug.WriteLine(buffer);
+// Capacity=6, Count=6, Buffer=[4,5,6,7,8,9]
 
-    // Reduce the capacity.
-    buffer.Capacity = 4;
-    Debug.WriteLine(buffer);
-    // Capacity=4, Count=4, Buffer=[4,5,6,7]
+// Reduce the capacity.
+buffer.Capacity = 4;
+Debug.WriteLine(buffer);
+// Capacity=4, Count=4, Buffer=[4,5,6,7]
 
-    // Clear the buffer.
-    buffer.Clear();
-    Debug.WriteLine(buffer);
-    // Capacity=4, Count=0, Buffer=[]
-}
+// Clear the buffer.
+buffer.Clear();
+Debug.WriteLine(buffer);
+// Capacity=4, Count=0, Buffer=[]
 ```
 
 ### Design Goal
