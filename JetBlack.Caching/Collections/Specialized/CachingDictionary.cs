@@ -6,13 +6,13 @@ using JetBlack.Caching.Collections.Generic;
 
 namespace JetBlack.Caching.Collections.Specialized
 {
-    public class CachingDictionry<TKey, TValue> : IDictionary<TKey, TValue>, IDisposable
+    public class CachingDictionary<TKey, TValue> : IDictionary<TKey, TValue>, IDisposable
     {
         private readonly PersistantDictionary<TKey, TValue> _persistantDictionary;
         private readonly IDictionary<TKey, TValue> _localDictionary;
         private readonly ICircularBuffer<TKey> _localKeyQueue;
 
-        public CachingDictionry(PersistantDictionary<TKey, TValue> persistantDictionary, int maxCacheCount)
+        public CachingDictionary(PersistantDictionary<TKey, TValue> persistantDictionary, int maxCacheCount)
         {
             _persistantDictionary = persistantDictionary;
             _localDictionary = new Dictionary<TKey, TValue>(maxCacheCount);
