@@ -96,7 +96,7 @@ namespace JetBlack.Caching.Collections.Generic
 				if (value < 0)
 					throw new ArgumentOutOfRangeException ("value", "must be positive");
 
-                                if (value == _buffer.Length)
+              if (value == _buffer.Length)
 					return;
 
 				var buffer = new T[value];
@@ -143,13 +143,15 @@ namespace JetBlack.Caching.Collections.Generic
 		}
 
 		public T this [int index] {
-			get {
+			get
+          {
 				if (index < 0 || index >= Count)
 					throw new ArgumentOutOfRangeException ("index");
 
 				return _buffer [(_tail + index) % Capacity];
 			}
-			set {
+			set
+          {
 				if (index < 0 || index >= Count)
 					throw new ArgumentOutOfRangeException ("index");
 
