@@ -11,7 +11,7 @@ interested in the most recent values.
 
 ### Usage Example
 
-To whet your appetit, here are some examples.
+To whet your appetite, here are some examples.
 
 ```cs
 public void UsageExample()
@@ -25,50 +25,51 @@ public void UsageExample()
     Debug.WriteLine(buffer);
     // Capacity=5, Count=3, Buffer=[1,2,3]
 
-    // Add three more
+    // Add three more.
     foreach (var i in Enumerable.Range(4, 3))
         buffer.Enqueue(i);
     Debug.WriteLine(buffer);
     // Capacity=5, Count=5, Buffer=[2,3,4,5,6]
 
-    // Remove the third
+    // Remove the third.
     buffer.RemoveAt(3);
     Debug.WriteLine(buffer);
     // Capacity=5, Count=4, Buffer=[2,3,4,6]
 
-    // Re-insert it
+    // Re-insert it.
     buffer.Insert(3, 5);
     Debug.WriteLine(buffer);
     // Capacity=5, Count=5, Buffer=[2,3,4,5,6]
 
-    // Dequeue
+    // Dequeue.
     Debug.Print("Value = {0}", buffer.Dequeue());
     // Value = 2
     Debug.WriteLine(buffer);
     // Capacity=5, Count=4, Buffer=[3,4,5,6]
 
-    // Increase the capacity
+    // Increase the capacity.
     buffer.Capacity = 6;
     Debug.WriteLine(buffer);
     // Capacity=6, Count=4, Buffer=[3,4,5,6]
 
-    // Add three more
+    // Add three more.
     foreach (var i in Enumerable.Range(7, 3))
         buffer.Enqueue(i);
     Debug.WriteLine(buffer);
     // Capacity=6, Count=6, Buffer=[4,5,6,7,8,9]
 
-    // Reduce the capacity
+    // Reduce the capacity.
     buffer.Capacity = 4;
     Debug.WriteLine(buffer);
     // Capacity=4, Count=4, Buffer=[4,5,6,7]
 
-    // Clear the buffer
+    // Clear the buffer.
     buffer.Clear();
     Debug.WriteLine(buffer);
     // Capacity=4, Count=0, Buffer=[]
 }
 ```
+
 ### Design Goal
 
 This is a circular buffer I needed as a component for a caching layer. It is
