@@ -9,6 +9,66 @@ A circular buffer is buffer of fixed length. When the buffer is full, subsequent
 writes wrap, overwriting previous values. It is useful when you are only
 interested in the most recent values.
 
+### Usage Example
+
+To whet your appetit, here are some examples.
+
+```cs
+public void UsageExample()
+{
+    // Create a buffer with a capacity of 5 items.
+    var buffer = new CircularBuffer<long>(5);
+
+    // Add three.
+    foreach (var i in Enumerable.Range(1, 3))
+        buffer.Enqueue(i);
+    Debug.WriteLine(buffer);
+    // Capacity=5, Count=3, Buffer=[1,2,3]
+
+    // Add three more
+    foreach (var i in Enumerable.Range(4, 3))
+        buffer.Enqueue(i);
+    Debug.WriteLine(buffer);
+    // Capacity=5, Count=5, Buffer=[2,3,4,5,6]
+
+    // Remove the third
+    buffer.RemoveAt(3);
+    Debug.WriteLine(buffer);
+    // Capacity=5, Count=4, Buffer=[2,3,4,6]
+
+    // Re-insert it
+    buffer.Insert(3, 5);
+    Debug.WriteLine(buffer);
+    // Capacity=5, Count=5, Buffer=[2,3,4,5,6]
+
+    // Dequeue
+    Debug.Print("Value = {0}", buffer.Dequeue());
+    // Value = 2
+    Debug.WriteLine(buffer);
+    // Capacity=5, Count=4, Buffer=[3,4,5,6]
+
+    // Increase the capacity
+    buffer.Capacity = 6;
+    Debug.WriteLine(buffer);
+    // Capacity=6, Count=4, Buffer=[3,4,5,6]
+
+    // Add three more
+    foreach (var i in Enumerable.Range(7, 3))
+        buffer.Enqueue(i);
+    Debug.WriteLine(buffer);
+    // Capacity=6, Count=6, Buffer=[4,5,6,7,8,9]
+
+    // Reduce the capacity
+    buffer.Capacity = 4;
+    Debug.WriteLine(buffer);
+    // Capacity=4, Count=4, Buffer=[4,5,6,7]
+
+    // Clear the buffer
+    buffer.Clear();
+    Debug.WriteLine(buffer);
+    // Capacity=4, Count=0, Buffer=[]
+}
+```
 ### Design Goal
 
 This is a circular buffer I needed as a component for a caching layer. It is

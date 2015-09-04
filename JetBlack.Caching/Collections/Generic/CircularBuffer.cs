@@ -140,5 +140,10 @@ namespace JetBlack.Caching.Collections.Generic
         {
             return GetEnumerator();
         }
+
+        public override string ToString()
+        {
+            return string.Format("Capacity={0}, Count={1}, Buffer=[{2}]", Capacity, Count, string.Join(",", this));
+        }
     }
 }
