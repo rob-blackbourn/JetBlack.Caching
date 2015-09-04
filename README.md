@@ -93,6 +93,7 @@ have still required the indexing operators and I wanted to keep the class small.
 It should be clear how a derived class, (possibly implementing `IList<T>`)
 could be trivially implemented.
 
+Click here for the source for [`ICircularBuffer<T>`](https://./JetBlack.Caching/Collections/Generic/ICircularBuffer.cs).
 ```cs
 using System.Collections.Generic;
 
@@ -415,7 +416,6 @@ namespace JetBlack.Caching.Test.Collections.Generic
 			Assert.AreEqual(2, buffer.Dequeue());
 			Assert.AreEqual(4, buffer.Dequeue());
 			Assert.AreEqual(0, buffer.Count);
-
 		}
 	}
 }
