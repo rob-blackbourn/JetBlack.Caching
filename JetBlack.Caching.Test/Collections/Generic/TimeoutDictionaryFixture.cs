@@ -12,7 +12,7 @@ namespace JetBlack.Caching.Test.Collections.Generic
         public void TestContainsKey()
         {
             var dateTimeProvider = new DiscreteDateTimeProvider(DateTime.Today, TimeSpan.FromMilliseconds(200));
-            var timeoutDictionary = new TimeoutDictionary<string, int>(dateTimeProvider, TimeSpan.FromMilliseconds(500));
+            var timeoutDictionary = new TimeoutDictionary<string, int>(TimeSpan.FromMilliseconds(500), dateTimeProvider);
 
             timeoutDictionary.Add("one", 1);
             Assert.IsTrue(timeoutDictionary.ContainsKey("one"));

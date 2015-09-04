@@ -7,8 +7,8 @@ namespace JetBlack.Caching.Collections.Concurrent
 {
     public class ConcurrentTimeoutDictionary<TKey, TValue> : TimeoutDictionary<TKey, TValue>
     {
-        public ConcurrentTimeoutDictionary(IDateTimeProvider dateTimeProvider, TimeSpan timeout)
-            : base(dateTimeProvider, timeout)
+        public ConcurrentTimeoutDictionary(TimeSpan timeout, IDateTimeProvider dateTimeProvider)
+            : base(timeout, dateTimeProvider)
         {
         }
 
