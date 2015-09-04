@@ -41,6 +41,7 @@
   <ItemGroup>
     <Compile Include="Collections\Concurrent\ConcurrentTimeoutDictionary.cs" />
     <Compile Include="Collections\Generic\CircularBuffer.cs" />
+    <Compile Include="Collections\Generic\CircularList.cs" />
     <Compile Include="Collections\Generic\ICircularBuffer.cs" />
     <Compile Include="Collections\Generic\KeyValuePair.cs" />
     <Compile Include="Collections\Generic\TimeoutDictionary.cs" />
