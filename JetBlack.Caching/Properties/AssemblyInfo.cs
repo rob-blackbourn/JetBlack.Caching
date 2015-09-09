@@ -2,7 +2,7 @@
 using System.Runtime.InteropServices;
 
 [assembly: AssemblyTitle("JetBlack.Caching")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyDescription("Some caching tools.")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("JetBlack")]
 [assembly: AssemblyProduct("JetBlack.Caching")]
