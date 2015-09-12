@@ -49,7 +49,9 @@
     <Compile Include="Collections\Specialized\ICache.cs" />
     <Compile Include="Collections\Specialized\IHeap.cs" />
     <Compile Include="Collections\Specialized\IHeapManager.cs" />
+    <Compile Include="Collections\Specialized\ILocalCache.cs" />
     <Compile Include="Collections\Specialized\LightweightHeapManager.cs" />
+    <Compile Include="Collections\Specialized\LocalCache.cs" />
     <Compile Include="Collections\Specialized\PersistentDictionary.cs" />
     <Compile Include="Collections\Specialized\SerializingCache.cs" />
     <Compile Include="Collections\Specialized\StreamHeap.cs" />

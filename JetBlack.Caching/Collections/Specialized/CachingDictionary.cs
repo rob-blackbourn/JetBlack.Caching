@@ -2,26 +2,23 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using JetBlack.Caching.Collections.Generic;
 
 namespace JetBlack.Caching.Collections.Specialized
 {
     public class CachingDictionary<TKey, TValue> : IDictionary<TKey, TValue>, IDisposable
     {
         private readonly PersistantDictionary<TKey, TValue> _persistantDictionary;
-        private readonly IDictionary<TKey, TValue> _localDictionary;
-        private readonly ICircularBuffer<TKey> _localKeyQueue;
+        private readonly ILocalCache<TKey, TValue> _localCache;
 
-        public CachingDictionary(PersistantDictionary<TKey, TValue> persistantDictionary, int maxCacheCount)
+        public CachingDictionary(PersistantDictionary<TKey, TValue> persistantDictionary, ILocalCache<TKey,TValue> localCache)
         {
             _persistantDictionary = persistantDictionary;
-            _localDictionary = new Dictionary<TKey, TValue>(maxCacheCount);
-            _localKeyQueue = new CircularBuffer<TKey>(maxCacheCount);
+            _localCache = localCache;
         }
 
         public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
         {
-            foreach (var item in _localDictionary)
+            foreach (var item in _localCache)
                 yield return item;
             foreach (var item in _persistantDictionary)
                 yield return item;
@@ -39,9 +36,8 @@ namespace JetBlack.Caching.Collections.Specialized
 
         public void Clear()
         {
-            _localDictionary.Clear();
+            _localCache.Clear();
             _persistantDictionary.Clear();
-            _localKeyQueue.Clear();
         }
 
         public bool Contains(KeyValuePair<TKey, TValue> item)
@@ -51,8 +47,8 @@ namespace JetBlack.Caching.Collections.Specialized
 
         public void CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex)
         {
-            _localDictionary.CopyTo(array, arrayIndex);
-            _persistantDictionary.CopyTo(array, _localDictionary.Count + arrayIndex);
+            _localCache.CopyTo(array, arrayIndex);
+            _persistantDictionary.CopyTo(array, _localCache.Count + arrayIndex);
         }
 
         public bool Remove(KeyValuePair<TKey, TValue> item)
@@ -62,7 +58,7 @@ namespace JetBlack.Caching.Collections.Specialized
 
         public int Count
         {
-            get { return _localDictionary.Count + _persistantDictionary.Count; }
+            get { return _localCache.Count + _persistantDictionary.Count; }
         }
 
         public bool IsReadOnly
@@ -72,40 +68,37 @@ namespace JetBlack.Caching.Collections.Specialized
 
         public bool ContainsKey(TKey key)
         {
-            return _localDictionary.ContainsKey(key) || _persistantDictionary.ContainsKey(key);
+            return _localCache.ContainsKey(key) || _persistantDictionary.ContainsKey(key);
         }
 
         public void Add(TKey key, TValue value)
         {
-            _localDictionary.Add(key, value);
-            var overwrittenKey = _localKeyQueue.Enqueue(key);
-            if (!Equals(overwrittenKey, default(TKey)))
-                MakePersistant(overwrittenKey);
+            KeyValuePair<TKey, TValue> overwritten;
+            if (_localCache.AddOrOverwrite(key, value, out overwritten))
+                _persistantDictionary.Add(overwritten.Key, overwritten.Value);
         }
 
         public bool Remove(TKey key)
         {
-            var status = _localDictionary.Remove(key);
-            if (status)
-                _localKeyQueue.RemoveAt(_localKeyQueue.IndexOf(key));
-            else
+            var status = _localCache.Remove(key);
+            if (!status)
                 status = _persistantDictionary.Remove(key);
             return status;
         }
 
         public bool TryGetValue(TKey key, out TValue value)
         {
-            if (!_localDictionary.TryGetValue(key, out value))
-            {
-                if (!_persistantDictionary.TryGetValue(key, out value))
-                {
-                    value = default(TValue);
-                    return false;
-                }
+            if (_localCache.TryGetValue(key, out value))
+                return true;
 
-                MakeLocal(key);
-                value = _localDictionary[key];
+            if (!_persistantDictionary.TryGetValue(key, out value))
+            {
+                value = default(TValue);
+                return false;
             }
+            
+            MakeLocal(key, value);
+
             return true;
         }
 
@@ -126,47 +119,35 @@ namespace JetBlack.Caching.Collections.Specialized
                 if (Equals(key, null))
                     throw new ArgumentNullException();
 
-                if (_localDictionary.ContainsKey(key))
-                    _localDictionary[key] = value;
+                if (_localCache.ContainsKey(key))
+                    _localCache[key] = value;
                 else if (!_persistantDictionary.ContainsKey(key))
                     Add(key, value);
                 else
                 {
-                    MakeLocal(key);
-                    _localDictionary[key] = value;
+                    MakeLocal(key, value);
+                    _localCache[key] = value;
                 }
             }
         }
 
         public ICollection<TKey> Keys
         {
-            get { return _localDictionary.Keys.Concat(_persistantDictionary.Keys).ToList(); }
+            get { return _localCache.Keys.Concat(_persistantDictionary.Keys).ToList(); }
         }
 
         public ICollection<TValue> Values
         {
-            get { return _localDictionary.Values.Concat(_persistantDictionary.Values).ToList(); }
+            get { return _localCache.Values.Concat(_persistantDictionary.Values).ToList(); }
         }
 
-        private void MakeLocal(TKey key)
+        private void MakeLocal(TKey key, TValue value)
         {
-            Move(key, _persistantDictionary, _localDictionary);
+            _persistantDictionary.Remove(key);
 
-            var overwrittenKey = _localKeyQueue.Enqueue(key);
-            if (!Equals(overwrittenKey, default(TKey)))
-                MakePersistant(overwrittenKey);
-        }
-
-        private void MakePersistant(TKey key)
-        {
-            Move(key, _localDictionary, _persistantDictionary);
-        }
-
-        private static void Move(TKey key, IDictionary<TKey, TValue> from, IDictionary<TKey, TValue> to)
-        {
-            var value = from[key];
-            from.Remove(key);
-            to.Add(key, value);
+            KeyValuePair<TKey,TValue> overwritten;
+            if (_localCache.AddOrOverwrite(key, value, out overwritten))
+                _persistantDictionary.Add(overwritten.Key, overwritten.Value);
         }
 
         public void Dispose()
