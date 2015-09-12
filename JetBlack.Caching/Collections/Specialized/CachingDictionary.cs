@@ -34,7 +34,7 @@ namespace JetBlack.Caching.Collections.Specialized
             Add(item.Key, item.Value);
         }
 
-        public void Clear()
+        public virtual void Clear()
         {
             _localCache.Clear();
             _persistantDictionary.Clear();
@@ -45,7 +45,7 @@ namespace JetBlack.Caching.Collections.Specialized
             return ContainsKey(item.Key);
         }
 
-        public void CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex)
+        public virtual void CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex)
         {
             _localCache.CopyTo(array, arrayIndex);
             _persistantDictionary.CopyTo(array, _localCache.Count + arrayIndex);
@@ -56,7 +56,7 @@ namespace JetBlack.Caching.Collections.Specialized
             return Remove(item.Key);
         }
 
-        public int Count
+        public virtual int Count
         {
             get { return _localCache.Count + _persistantDictionary.Count; }
         }
@@ -66,19 +66,19 @@ namespace JetBlack.Caching.Collections.Specialized
             get { return false; }
         }
 
-        public bool ContainsKey(TKey key)
+        public virtual bool ContainsKey(TKey key)
         {
             return _localCache.ContainsKey(key) || _persistantDictionary.ContainsKey(key);
         }
 
-        public void Add(TKey key, TValue value)
+        public virtual void Add(TKey key, TValue value)
         {
             KeyValuePair<TKey, TValue> overwritten;
             if (_localCache.AddOrOverwrite(key, value, out overwritten))
                 _persistantDictionary.Add(overwritten.Key, overwritten.Value);
         }
 
-        public bool Remove(TKey key)
+        public virtual bool Remove(TKey key)
         {
             var status = _localCache.Remove(key);
             if (!status)
@@ -86,7 +86,7 @@ namespace JetBlack.Caching.Collections.Specialized
             return status;
         }
 
-        public bool TryGetValue(TKey key, out TValue value)
+        public virtual bool TryGetValue(TKey key, out TValue value)
         {
             if (_localCache.TryGetValue(key, out value))
                 return true;
@@ -102,7 +102,7 @@ namespace JetBlack.Caching.Collections.Specialized
             return true;
         }
 
-        public TValue this[TKey key]
+        public virtual TValue this[TKey key]
         {
             get
             {
@@ -131,12 +131,12 @@ namespace JetBlack.Caching.Collections.Specialized
             }
         }
 
-        public ICollection<TKey> Keys
+        public virtual ICollection<TKey> Keys
         {
             get { return _localCache.Keys.Concat(_persistantDictionary.Keys).ToList(); }
         }
 
-        public ICollection<TValue> Values
+        public virtual ICollection<TValue> Values
         {
             get { return _localCache.Values.Concat(_persistantDictionary.Values).ToList(); }
         }
@@ -150,7 +150,7 @@ namespace JetBlack.Caching.Collections.Specialized
                 _persistantDictionary.Add(overwritten.Key, overwritten.Value);
         }
 
-        public void Dispose()
+        public virtual void Dispose()
         {
             _persistantDictionary.Dispose();
         }

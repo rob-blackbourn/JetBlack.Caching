@@ -33,6 +33,7 @@
     <Reference Include="System" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Collections\Concurrent\ConcurrentLookupCache.cs" />
     <Compile Include="Collections\Concurrent\ConcurrentTimeoutDictionary.cs" />
     <Compile Include="Collections\Generic\CircularBuffer.cs" />
     <Compile Include="Collections\Generic\CircularList.cs" />
