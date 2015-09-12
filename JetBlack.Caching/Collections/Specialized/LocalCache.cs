@@ -76,13 +76,17 @@ namespace JetBlack.Caching.Collections.Specialized
 
         public bool TryGetValue(TKey key, out TValue value)
         {
-            return _localDictionary.TryGetValue(key, out value);
+            if (!_localDictionary.TryGetValue(key, out value))
+                return false;
+
+            TryMakeFirst(key);
+            return true;
         }
 
         public TValue this[TKey key]
         {
-            get { return _localDictionary[key]; }
-            set { _localDictionary[key] = value; }
+            get { return Get(key); }
+            set { Set(key, value); }
         }
 
         public ICollection<TKey> Keys
@@ -93,6 +97,35 @@ namespace JetBlack.Caching.Collections.Specialized
         public ICollection<TValue> Values
         {
             get { return _localDictionary.Values; }
+        }
+
+        private TValue Get(TKey key)
+        {
+            TryMakeFirst(key);
+            return _localDictionary[key];
+        }
+
+        private void Set(TKey key, TValue value)
+        {
+            TryMakeFirst(key);
+            _localDictionary[key] = value;
+        }
+
+        private bool TryMakeFirst(TKey key)
+        {
+            if (_localKeyQueue.Count == 0)
+                return false;
+
+            if (_localKeyQueue.Count == 1)
+                return Equals(_localKeyQueue[0], key);
+
+            var index = _localKeyQueue.IndexOf(key);
+            if (index == -1)
+                return false;
+
+            _localKeyQueue.RemoveAt(index);
+            _localKeyQueue.Enqueue(key);
+            return true;
         }
     }
 }
